@@ -98,5 +98,7 @@ class IKairSensor(CoordinatorEntity[IKairDataCoordinator], SensorEntity):
             elif key == "humidity":
                 self._attr_native_value = data.humidity
             elif key == "battery":
-                self._attr_native_value = data.battery
+                # 只有读到电池值才更新，否则保留上一次的值
+                if data.battery is not None:
+                    self._attr_native_value = data.battery
             self.async_write_ha_state()

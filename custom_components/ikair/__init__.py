@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import timedelta
 from typing import Optional
 
@@ -76,6 +77,7 @@ class IKairDataCoordinator(DataUpdateCoordinator[Optional[SensorData]]):
         self._persistent_client = None
         self._persistent_task: asyncio.Task | None = None
         self._last_data: SensorData | None = None
+        self._last_battery_read: float = 0
 
         interval = KEEP_CONNECTED_INTERVAL_SECONDS if self._keep_connected else DEFAULT_UPDATE_INTERVAL_SECONDS
         super().__init__(
@@ -123,9 +125,14 @@ class IKairDataCoordinator(DataUpdateCoordinator[Optional[SensorData]]):
                         continue
                     raise UpdateFailed(f"找不到设备 {self._address}")
 
-                data = await self._protocol.connect_and_read(ble_device)
+                data = await self._protocol.connect_and_read(
+                    ble_device,
+                    read_battery=(time.monotonic() - self._last_battery_read > 300),
+                )
                 if data is not None:
                     _LOGGER.info("iKair数据: %.1f°C %.1f%%", data.temperature, data.humidity)
+                    if data.battery is not None:
+                        self._last_battery_read = time.monotonic()
                     return data
 
                 if attempt < 2:

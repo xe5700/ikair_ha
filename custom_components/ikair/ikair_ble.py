@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import struct
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
@@ -79,7 +80,7 @@ class IKairProtocol:
         ]
         return ikair_devices
 
-    async def connect_and_read(self, device: BLEDevice) -> SensorData | None:
+    async def connect_and_read(self, device: BLEDevice, read_battery: bool = True) -> SensorData | None:
         """Connect to device, perform auth, read sensor data, then disconnect.
 
         This is a self-contained session: connect -> bind -> get data -> disconnect.
@@ -90,6 +91,7 @@ class IKairProtocol:
         self._ready.clear()
 
         client = None
+        self._read_battery_requested = read_battery
         try:
             client = await establish_connection(
                 BleakClient,
@@ -292,7 +294,20 @@ class IKairProtocol:
             self._config_char_handle, bytearray([11, 1, 0, 0, 0])
         )
         
+        # 4. Read battery level (first time + every 5 min)
+        if getattr(self, '_read_battery_requested', True):
+            await self._client.write_gatt_char(
+                self._config_char_handle, bytearray([8, 36, 0, 0, 0])
+            )
+        
         _LOGGER.debug("Initialization complete for %s", self._device.name)
+
+    async def _read_battery(self) -> None:
+        """读取设备电量。"""
+        if self._config_char_handle:
+            await self._client.write_gatt_char(
+                self._config_char_handle, bytearray([8, 36, 0, 0, 0])
+            )
 
     async def _sync_device_time(self) -> None:
         """同步设备时间（从2000-01-01开始的秒数）。"""
@@ -324,9 +339,15 @@ class IKairProtocol:
         await self._setup_notifications(client)
         await self._authenticate(client)
 
-        # 保持连接直到断开
+        # 保持连接，每5分钟读一次电池
+        batt_interval = 300  # 秒
+        last_batt = 0
         while client.is_connected:
             await asyncio.sleep(1)
+            elapsed = time.monotonic() - last_batt
+            if elapsed >= batt_interval:
+                await self._read_battery()
+                last_batt = time.monotonic()
 
     async def disconnect(self) -> None:
         """断开连接（如果是持续连接模式）。"""

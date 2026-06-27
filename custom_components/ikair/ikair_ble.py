@@ -1,12 +1,7 @@
 """iKair BLE protocol implementation.
 
-Two modes:
-1. Passive (advertisement-only) - reads temp/humidity from BLE broadcast
-   packets. No connection needed, zero extra battery drain.
-2. Active (GATT connection) - connects, binds, reads notifications.
-   Used as fallback when ad data is unreliable.
-
-Based on reverse-engineered Android app.
+Active (GATT connection) mode: connects, authenticates, reads temperature/humidity
+notifications. Based on reverse-engineered Android app.
 """
 
 from __future__ import annotations
@@ -70,73 +65,6 @@ class IKairProtocol:
         self._ready = asyncio.Event()
         self._ad_data = None
 
-    async def scan_passive(self, timeout: int = 30) -> list[tuple[BLEDevice, SensorData | None]]:
-        """Passive scan: read temperature/humidity from BLE advertisements.
-        
-        No connection needed - this is battery-friendly.
-        Temperature is parsed from manufacturer-specific AD data (0xFF).
-        """
-        from bleak.backends.scanner import AdvertisementData
-        from bleak.backends.device import BLEDevice
-
-        results: list[tuple[BLEDevice, SensorData | None]] = []
-
-        def callback(device: BLEDevice, advertisement_data: AdvertisementData):
-            if not device.name or not device.name.startswith("iKair H&T"):
-                return
-            data = self._parse_ad_data(advertisement_data)
-            if data:
-                results.append((device, data))
-
-        scanner = BleakScanner(
-            detection_callback=callback,
-            adapter=self.adapter,
-        )
-        await scanner.start()
-        await asyncio.sleep(timeout)
-        await scanner.stop()
-
-        return results
-
-    def _parse_ad_data(self, ad_data) -> SensorData | None:
-        """Parse temperature/humidity from BLE advertisement manufacturer data.
-        
-        The iKair device embeds temperature/humidity in manufacturer-specific
-        AD data (type 0xFF). Based on parse_ikair.py reverse engineering.
-        
-        Note: AD data scaling (÷1592, ÷279) differs from notification data
-        (÷10). The ad values may need calibration against real readings.
-        """
-        mfr_data = getattr(ad_data, "manufacturer_data", None)
-        if not mfr_data:
-            return None
-
-        # Try common manufacturer IDs found on iKair devices
-        for mfr_id, payload in mfr_data.items():
-            if len(payload) >= 4:
-                # Bytes 0-1: temp_raw, Bytes 2-3: humi_raw (little endian)
-                temp_raw = struct.unpack("<H", payload[0:2])[0]
-                hum_raw = struct.unpack("<H", payload[2:4])[0]
-                
-                # The divide-by-10 notification format might be what the
-                # device actually means; the ÷1592÷279 may be wrong.
-                # Try ÷10 first as it matches the notification format.
-                temperature = temp_raw / 10.0
-                humidity = hum_raw / 10.0
-                
-                # Sanity check: reasonable temp (0-60°C) and humidity (0-100%)
-                if 0 <= temperature <= 60 and 0 <= humidity <= 100:
-                    _LOGGER.debug(
-                        "Ad data: mfr=0x%04X temp_raw=%d hum_raw=%d -> %.1f°C %.1f%%",
-                        mfr_id, temp_raw, hum_raw, temperature, humidity,
-                    )
-                    return SensorData(
-                        temperature=temperature,
-                        humidity=humidity,
-                        timestamp=datetime.now(),
-                    )
-
-        return None
 
     async def discover(self) -> list[BLEDevice]:
         """Scan for iKair devices."""

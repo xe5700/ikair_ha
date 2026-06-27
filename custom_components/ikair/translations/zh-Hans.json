@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "iKair 蓝牙温湿度计",
+        "description": "选择要添加的 iKair 设备。",
+        "data": {
+          "address": "设备"
+        }
+      },
+      "confirm": {
+        "description": "确定要设置 {name} 吗？"
+      }
+    },
+    "abort": {
+      "already_configured": "设备已配置。",
+      "no_devices_found": "附近未找到 iKair 设备。",
+      "not_supported": "此设备不是 iKair 温湿度计。"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": {
+        "name": "温度"
+      },
+      "humidity": {
+        "name": "湿度"
+      },
+      "battery": {
+        "name": "电量"
+      }
+    }
+  }
+}

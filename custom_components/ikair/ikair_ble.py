@@ -272,22 +272,36 @@ class IKairProtocol:
         _LOGGER.debug("Sent bind data to %s", self._device.name)
 
     async def _handle_verification(self) -> None:
-        """Handle verification success - enable data streaming."""
+        """Handle verification success - complete initialization.
+        
+        Auth done → sync time → remove notice → enable real-time briefly.
+        """
         if not self._client or not self._config_char_handle:
             return
 
-        # Enable real-time data
-        await self._client.write_gatt_char(
-            self._config_char_handle, bytearray([11, 1, 0, 0, 0])
-        )
-        # Enable historical data
-        await self._client.write_gatt_char(
-            self._config_char_handle, bytearray([10, 1, 0, 0, 0])
-        )
-        # Remove notice
+        # 1. Sync device time (needed for stable connection)
+        await self._sync_device_time()
+        
+        # 2. Remove notice/message
         await self._client.write_gatt_char(
             self._config_char_handle, bytearray([6, 0, 0, 0, 0])
         )
+        
+        # 3. Enable real-time data (to receive temperature)
+        await self._client.write_gatt_char(
+            self._config_char_handle, bytearray([11, 1, 0, 0, 0])
+        )
+        
+        _LOGGER.debug("Initialization complete for %s", self._device.name)
+
+    async def _sync_device_time(self) -> None:
+        """同步设备时间（从2000-01-01开始的秒数）。"""
+        base = datetime(2000, 1, 1)
+        seconds = int((datetime.now().timestamp() - base.timestamp()))
+        data = bytearray([0x01])
+        data.extend(struct.pack("<I", seconds))
+        await self._client.write_gatt_char(self._config_char_handle, data)
+        _LOGGER.debug("Synced device time")
 
     def _handle_battery(self, data: bytearray) -> None:
         """Handle battery level data."""

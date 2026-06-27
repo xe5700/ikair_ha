@@ -232,6 +232,9 @@ class IKairProtocol:
             timestamp=timestamp,
         )
         self._ready.set()
+        # 持续连接模式：回调推送数据
+        if hasattr(self, '_on_data_callback') and self._on_data_callback:
+            self._on_data_callback(self._sensor_data)
 
     async def _handle_notify_data(self, data: bytearray) -> None:
         """Handle operation notification data (fff1)."""
@@ -290,3 +293,33 @@ class IKairProtocol:
         """Handle battery level data."""
         if len(data) >= 2 and self._sensor_data:
             self._sensor_data.battery = data[1]
+
+    async def connect_persistent(
+        self, device: BLEDevice, data_callback
+    ) -> None:
+        """持续连接设备，每次收到通知都回调。连接断开后自动抛出异常。"""
+        self._device = device
+        self._on_data_callback = data_callback
+        client = await establish_connection(
+            BleakClient, device, device.address,
+            max_attempts=3, timeout=CONNECT_TIMEOUT,
+        )
+        self._client = client
+        _LOGGER.debug("持续连接已建立: %s", device.name)
+
+        await self._setup_notifications(client)
+        await self._authenticate(client)
+
+        # 保持连接直到断开
+        while client.is_connected:
+            await asyncio.sleep(1)
+
+    async def disconnect(self) -> None:
+        """断开连接（如果是持续连接模式）。"""
+        if self._client and self._client.is_connected:
+            try:
+                await self._cleanup(self._client)
+                await self._client.disconnect()
+            except Exception:
+                pass
+        self._client = None

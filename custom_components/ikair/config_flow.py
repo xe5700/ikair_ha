@@ -11,10 +11,10 @@ from homeassistant.components.bluetooth import (
     async_discovered_service_info,
     async_request_active_scan,
 )
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_ADDRESS, CONF_NAME
 
-from .const import DOMAIN
+from .const import CONF_KEEP_CONNECTED, DOMAIN
 from .ikair_ble import IKairProtocol
 
 CONF_ADAPTER = "adapter"
@@ -96,5 +96,34 @@ class IKairConfigFlow(ConfigFlow, domain=DOMAIN):
                     addr: f"{name} ({addr})"
                     for addr, name in self._discovered_devices.items()
                 }),
+            }),
+        )
+
+    @staticmethod
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> OptionsFlow:
+        """Create the options flow."""
+        return IKairOptionsFlow(config_entry)
+
+
+class IKairOptionsFlow(OptionsFlow):
+    """Handle options for iKair BLE Thermometer."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        self._config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        current = self._config_entry.options.get(CONF_KEEP_CONNECTED, False)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                vol.Optional(CONF_KEEP_CONNECTED, default=current): bool,
             }),
         )

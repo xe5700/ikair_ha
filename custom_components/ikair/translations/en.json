@@ -30,5 +30,16 @@
         "name": "Battery"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "iKair BLE Settings",
+        "description": "Keep BLE connection always on for real-time updates. May increase power usage.",
+        "data": {
+          "keep_connected": "Keep connected"
+        }
+      }
+    }
   }
 }

@@ -30,5 +30,16 @@
         "name": "电量"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "iKair 蓝牙设置",
+        "description": "保持蓝牙持续连接以获得实时数据更新，可能增加设备耗电。",
+        "data": {
+          "keep_connected": "保持连接"
+        }
+      }
+    }
   }
 }

@@ -1,0 +1,9 @@
+{
+  "name": "iKair BLE Thermometer",
+  "render_readme": true,
+  "country": "CN",
+  "homeassistant": "2024.1.0",
+  "content_in_root": false,
+  "domains": ["sensor"],
+  "iot_class": "local_polling"
+}

@@ -1,0 +1,21 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "description": "Pick an iKair device to add.",
+        "data": {
+          "address": "Device"
+        }
+      },
+      "confirm": {
+        "description": "Do you want to set up {name}?"
+      }
+    },
+    "abort": {
+      "already_configured": "Device is already configured.",
+      "no_devices_found": "No iKair devices found nearby.",
+      "not_supported": "This device is not an iKair thermometer."
+    }
+  }
+}

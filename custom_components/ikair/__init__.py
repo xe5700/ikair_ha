@@ -9,7 +9,6 @@ from typing import Optional
 
 from homeassistant.components.bluetooth import async_ble_device_from_address
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
@@ -37,9 +36,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = IKairDataCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
 
-    entry.async_on_unload(
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, coordinator.shutdown)
-    )
     entry.async_on_unload(coordinator.async_shutdown)
 
     hass.data.setdefault(DOMAIN, {})

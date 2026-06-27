@@ -41,7 +41,7 @@ class IKairConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="not_supported")
 
         self._discovery_info = discovery_info
-        self._context["title_placeholders"] = {"name": discovery_info.name}
+        self.context["title_placeholders"] = {"name": discovery_info.name}
         return await self.async_step_confirm()
 
     async def async_step_confirm(
